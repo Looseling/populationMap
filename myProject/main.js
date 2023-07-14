@@ -4,7 +4,8 @@ import { mapData2 } from "./public/map.js";
 
 // Rotate your map data
 var mapData = rotate90DegreesCounterClockwise(mapData2);
-
+let raindropPositions = [];
+let raindropVelocities = [];
 // Create a scene
 const scene = new THREE.Scene();
 
@@ -40,11 +41,24 @@ for (let i = 0; i < mapData.length; i++) {
 generateMap();
 //clouds
 generateClouds();
+//rainDrops
+createRainDrop();
 // Animation loop
 function animate() {
   requestAnimationFrame(animate);
 
-  // Required for smooth rotation with OrbitControls
+  //rainDrops fall
+  // for (let i = 0; i < raindropPositions.length; i++) {
+  //   // Update position
+  //   raindropPositions[i].add(raindropVelocities[i]);
+
+  //   // Update matrix
+  //   dummy.position.copy(raindropPositions[i]);
+  //   dummy.updateMatrix();
+  //   voxel.setMatrixAt(i, dummy.matrix);
+  // }
+  // voxel.instanceMatrix.needsUpdate = true;
+  //
   controls.update();
   renderer.render(scene, camera);
 }
@@ -101,4 +115,30 @@ function generateMap() {
     }
   }
   cube.instanceMatrix.needsUpdate = true;
+}
+
+function createRainDrop() {
+  let geometry = new THREE.BoxGeometry(1, 1, 1);
+  let material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+  let voxel = new THREE.InstancedMesh(geometry, material, 10000);
+
+  scene.add(voxel);
+  const dummy = new THREE.Object3D();
+  let instanceCounter = 0;
+  for (let i = 0; i < mapData.length; i++) {
+    for (let j = 0; j < mapData[i].length; j++) {
+      if (mapData[i][j] === 1) {
+        if (Math.random() < 0.05) {
+          dummy.position.set(-i, j, Math.random() * 20 - 300);
+          dummy.updateMatrix();
+          voxel.setMatrixAt(instanceCounter++, dummy.matrix);
+          raindropPositions.push(
+            new THREE.Vector3(-i, j, Math.random() * 20 - 300)
+          );
+          raindropVelocities.push(new THREE.Vector3(0, 0, 1)); // For example, drop down at a rate of 0.1 units per frame
+        }
+      }
+    }
+  }
+  voxel.instanceMatrix.needsUpdate = true;
 }
