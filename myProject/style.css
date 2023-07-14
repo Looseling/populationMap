@@ -1,0 +1,31 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@900&family=Rokkitt:wght@900&display=swap");
+body {
+  overflow: hidden;
+  margin: 0;
+}
+.text1 {
+  position: absolute;
+  top: 0vh;
+  left: calc(50% - 48vh);
+  /*right: 4vw;*/
+}
+.text2 {
+  position: absolute;
+  bottom: 2vh;
+  left: calc(50% - 0vh);
+  /*right: 4vw;*/
+}
+.retro {
+  font-family: "Roboto Slab";
+  font-size: 12vh;
+  display: block;
+  /*transform: rotate(-15deg) skew(-25deg);*/
+  color: #555fff;
+  text-shadow: -0.5vh 0 #64ffff, 0 0.5vh #64ffff, 0.5vh 0 #64ff64,
+    0 -0.5vh #64ff64;
+
+  -webkit-user-select: none; /* Chrome all / Safari all */
+  -moz-user-select: none; /* Firefox all */
+  -ms-user-select: none; /* IE 10+ */
+  user-select: none; /* Likely future */
+}
