@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { mapData2 } from "./public/map.js";
-
+var clock = new THREE.Clock();
 // Rotate your map data
-var mapData = rotate90DegreesCounterClockwise(mapData2);
+var mapData = mapData2;
 let raindropPositions = [];
 let raindropVelocities = [];
 // Create a scene
@@ -42,38 +42,46 @@ generateMap();
 //clouds
 generateClouds();
 //rainDrops
-createRainDrop();
+let geometry = new THREE.BoxGeometry(1, 1, 1);
+let material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+let voxel = new THREE.InstancedMesh(geometry, material, 10000);
+scene.add(voxel);
+const dummy = new THREE.Object3D();
+let raindropTimers = [];
+let instanceCounter = 0;
+
+for (let i = 0; i < mapData.length; i++) {
+  for (let j = 0; j < mapData[i].length; j++) {
+    if (mapData[i][j] === 1) {
+      if (Math.random() < 0.05) {
+        let position = new THREE.Vector3(-i, Math.random() * 20 + 300, j);
+        let velocity = new THREE.Vector3(0, -1, 0); // All raindrops have the same speed
+
+        // Add this velocity and position to the arrays
+        raindropPositions.push(position);
+        raindropVelocities.push(velocity);
+
+        // Add a randomized timer for each raindrop
+        raindropTimers.push(Math.random() * 5);
+
+        dummy.position.copy(position);
+        dummy.updateMatrix();
+        voxel.setMatrixAt(instanceCounter++, dummy.matrix);
+      }
+    }
+  }
+}
+voxel.instanceMatrix.needsUpdate = true;
+
 // Animation loop
 function animate() {
+  let deltaTime = clock.getDelta(); // get the time since last frame in seconds
+  updateRaindrops(deltaTime);
   requestAnimationFrame(animate);
-
-  //rainDrops fall
-  // for (let i = 0; i < raindropPositions.length; i++) {
-  //   // Update position
-  //   raindropPositions[i].add(raindropVelocities[i]);
-
-  //   // Update matrix
-  //   dummy.position.copy(raindropPositions[i]);
-  //   dummy.updateMatrix();
-  //   voxel.setMatrixAt(i, dummy.matrix);
-  // }
-  // voxel.instanceMatrix.needsUpdate = true;
-  //
   controls.update();
   renderer.render(scene, camera);
 }
 animate();
-
-function rotate90DegreesCounterClockwise(matrix) {
-  // Copy the original matrix
-  let copy = [...matrix];
-
-  // Create a new matrix by mapping each (x, y) position to (y, x), then reverse the entire matrix
-  let rotated = copy[0]
-    .map((val, index) => copy.map((row) => row[index]))
-    .reverse();
-  return rotated;
-}
 
 function generateClouds() {
   const cloudGeometry = new THREE.BoxGeometry(15, 15, 15); // Cloud shape (you can modify this)
@@ -87,7 +95,7 @@ function generateClouds() {
     for (let j = 0; j < mapData[i].length; j++) {
       if (i % 10 === 0)
         if (Math.random() < 0.05) {
-          dummy.position.set(-i, j, Math.random() * 20 - 300);
+          dummy.position.set(-i, Math.random() * 20 + 300, j);
           console.log(i);
           dummy.updateMatrix();
           cloud.setMatrixAt(instanceCounter++, dummy.matrix);
@@ -108,7 +116,7 @@ function generateMap() {
   for (let i = 0; i < mapData.length; i++) {
     for (let j = 0; j < mapData[i].length; j++) {
       if (mapData[i][j] === 1) {
-        dummy.position.set(-i, j, 0);
+        dummy.position.set(-i, 0, j);
         dummy.updateMatrix();
         cube.setMatrixAt(instanceCounter++, dummy.matrix);
       }
@@ -117,28 +125,33 @@ function generateMap() {
   cube.instanceMatrix.needsUpdate = true;
 }
 
-function createRainDrop() {
-  let geometry = new THREE.BoxGeometry(1, 1, 1);
-  let material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-  let voxel = new THREE.InstancedMesh(geometry, material, 10000);
+function createRainDrop() {}
+function updateRaindrops(deltaTime) {
+  for (let i = 0; i < raindropPositions.length; i++) {
+    let velocity = raindropVelocities[i];
+    let position = raindropPositions[i];
+    let timer = raindropTimers[i];
 
-  scene.add(voxel);
-  const dummy = new THREE.Object3D();
-  let instanceCounter = 0;
-  for (let i = 0; i < mapData.length; i++) {
-    for (let j = 0; j < mapData[i].length; j++) {
-      if (mapData[i][j] === 1) {
-        if (Math.random() < 0.05) {
-          dummy.position.set(-i, j, Math.random() * 20 - 300);
-          dummy.updateMatrix();
-          voxel.setMatrixAt(instanceCounter++, dummy.matrix);
-          raindropPositions.push(
-            new THREE.Vector3(-i, j, Math.random() * 20 - 300)
-          );
-          raindropVelocities.push(new THREE.Vector3(0, 0, 1)); // For example, drop down at a rate of 0.1 units per frame
-        }
-      }
+    timer -= deltaTime;
+    if (timer <= 0) {
+      // Reset the raindrop's position and timer
+      position.y = Math.random() * 20 + 300;
+      timer = Math.random() * 5;
+    } else {
+      // Apply gravity to the velocity
+      velocity.y += -9.8 * deltaTime;
     }
+
+    // Update position based on velocity and time
+    position.add(velocity.clone().multiplyScalar(deltaTime));
+
+    // Update the positions of the instances
+    dummy.position.copy(position);
+    dummy.updateMatrix();
+    voxel.setMatrixAt(i, dummy.matrix);
+
+    // Save the updated timer
+    raindropTimers[i] = timer;
   }
   voxel.instanceMatrix.needsUpdate = true;
 }
