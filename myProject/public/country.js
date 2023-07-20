@@ -3,5 +3,16 @@ export default class Country {
     this.properties = properties;
     this.polygons = polygons;
     this.bbox = bbox;
+    this.raindropStates = [];
+    this.voxelRain = null;
+    this.highestVoxels = [];
+  }
+
+  get voxels() {
+    return this._voxels;
+  }
+
+  set voxels(value) {
+    this._voxels = value;
   }
 }
