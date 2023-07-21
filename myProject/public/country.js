@@ -6,6 +6,7 @@ export default class Country {
     this.raindropStates = [];
     this.voxelRain = null;
     this.highestVoxels = [];
+    this.velocities = [];
   }
 
   get voxels() {

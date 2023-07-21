@@ -7,8 +7,10 @@ import Papa from "papaparse";
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
 import gsap from "gsap";
+import Chart from "chart.js/auto";
 
 var popData = await getPopulationData();
+var populationNumber = 0;
 console.log(popData);
 
 //new earth map
@@ -47,14 +49,19 @@ let countries = geoJsonData.features.map((feature) => {
 const scene = new THREE.Scene();
 
 // Create a camera
-const aspectRatio = window.innerWidth / window.innerHeight;
+const aspectRatio =
+  document.getElementById("threeContainer").clientWidth /
+  document.getElementById("threeContainer").clientHeight;
 const camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 10000);
 
 // Create a renderer
 const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-renderer.setClearColor(0xffea00);
+renderer.setSize(
+  document.getElementById("threeContainer").clientWidth,
+  document.getElementById("threeContainer").clientHeight
+);
+document.getElementById("threeContainer").appendChild(renderer.domElement);
+renderer.setClearColor(0x502f4c);
 
 // // Controls
 // const controls = new OrbitControls(camera, renderer.domElement);
@@ -63,35 +70,65 @@ renderer.setClearColor(0xffea00);
 // controls.enableZoom = true;
 
 // Initial camera position
-camera.position.set(0, 100, 500);
+camera.position.set(0, 100, 300);
 camera.lookAt(0, 0, 0);
+//Camera Movement
+window.addEventListener("contextmenu", function () {
+  gsap.to(camera.position, {
+    z: 500,
+    duration: 1.5,
+  });
+});
 
 //test
-
+//rain
+const rainDropVelocity = new THREE.Vector3(0, -5, 0);
+const boxGeometry = new THREE.BoxGeometry(5, 5, 5);
+const dummyRain = new THREE.Object3D();
 let currentIndex = 0;
-
+let currentCountry = null;
 // Function to generate the current country
 function renderCountry() {
   // Dispose of old country to free up memory
   while (scene.children.length > 0) {
     const object = scene.children[0];
     object.parent.remove(object);
-    if (object.geometry) object.geometry.dispose();
-    if (object.material) object.material.dispose();
   }
 
   // Render new country
-  generateUnit(countries[currentIndex]);
+  let position = new THREE.Vector3(0, 0, 0); // Center of the screen
+  populationNumber = extractPopulationData(
+    popData,
+    countries[currentIndex],
+    63
+  );
+  currentCountry = generateUnit(countries[currentIndex], position);
 }
+
 // Creating dropdown
-let dropdown = document.createElement("select");
+let dropdown = document.getElementById("myDropdown");
+//style
+dropdown.style.width = "100%";
+dropdown.style.padding = "10px";
+dropdown.style.fontFamily = "'Press Start 2P', cursive";
+dropdown.style.backgroundColor = "rgba(35, 13, 25, 0.8)";
+dropdown.style.border = "2px solid black";
+dropdown.style.color = "white";
+dropdown.style.outline = "none";
+dropdown.style.fontSize = "1em";
+dropdown.style.cursor = "pointer";
+dropdown.style.WebkitAppearance =
+  "none"; /* Removes default chrome and safari style */
+dropdown.style.MozAppearance = "none"; /* Removes default Firefox style */
+dropdown.style.appearance = "none"; /* Removes the default select box style */
+
+// Populate dropdown
 countries.forEach((country, index) => {
   let option = document.createElement("option");
   option.value = index;
   option.text = country.properties["ADMIN"];
   dropdown.appendChild(option);
 });
-document.body.appendChild(dropdown);
 
 // Event listener for dropdown
 dropdown.addEventListener("change", (event) => {
@@ -103,18 +140,95 @@ dropdown.addEventListener("change", (event) => {
 renderCountry();
 
 //map
-function generateUnit(country) {
-  CountryNameBackgroundText(country.properties["ADMIN"]);
-  generateCountryMap(country);
+function generateUnit(country, position) {
+  CountryNameBackgroundText(country.properties["ADMIN"], position);
+  generateCountryMap(country, position);
+  setupCountries(country);
+  populationNumber = extractPopulationData(popData, country, 63);
+  var eblan = extractPopulationData2(popData, country);
+  DataColumn(eblan);
+  return country;
+}
+//rain logic
+
+function setupCountries(country) {
+  country.voxels = getPointsInCountry(country);
+  const populationRaindrops = Math.ceil(populationNumber / 10000);
+  const countryColor = new THREE.Color(getRandomColor());
+  const materialRain = new THREE.MeshBasicMaterial({ color: countryColor });
+
+  country.voxelRain = new THREE.InstancedMesh(
+    boxGeometry,
+    materialRain,
+    populationRaindrops
+  );
+  country.raindropStates = setupRaindropStates(country, populationRaindrops);
+  country.highestVoxels = new Map();
+
+  scene.add(country.voxelRain);
+}
+
+function setupRaindropStates(country, raindropCount) {
+  const states = new Array(raindropCount);
+  for (let i = 0; i < raindropCount; i++) {
+    const rainCoordIndex = Math.floor(Math.random() * country.voxels.length);
+    states[i] = {
+      position: new THREE.Vector3(
+        country.voxels[rainCoordIndex][0],
+        190,
+        country.voxels[rainCoordIndex][1]
+      ),
+      velocity: rainDropVelocity,
+      isFalling: Math.random() > 0.5,
+    };
+    updateRaindropMatrix(country.voxelRain, states[i].position, i);
+  }
+  return states;
+}
+
+function updateRaindropMatrix(voxelRain, position, index) {
+  dummyRain.position.copy(position);
+  dummyRain.updateMatrix();
+  voxelRain.setMatrixAt(index, dummyRain.matrix);
+  voxelRain.instanceMatrix.needsUpdate = true;
+}
+
+function animateRaindrops(currentIndex) {
+  var country = countries[currentIndex];
+  for (let i = 0; i < country.raindropStates.length; i++) {
+    const state = country.raindropStates[i];
+    if (!state.isFalling && Math.random() > 0.98) state.isFalling = true;
+    if (state.isFalling) {
+      state.position.add(state.velocity);
+      const highest =
+        country.highestVoxels.get(`${state.position.x},${state.position.z}`) ||
+        0;
+      if (state.position.y <= highest) {
+        state.position.y = highest + 5;
+        state.isFalling = false;
+        country.highestVoxels.set(
+          `${state.position.x},${state.position.z}`,
+          state.position.y
+        );
+      } else {
+        updateRaindropMatrix(country.voxelRain, state.position, i);
+      }
+    }
+  }
 }
 
 // Animation loop
 function animate() {
   requestAnimationFrame(animate);
+  if (currentCountry) {
+    animateRaindrops(currentIndex);
+  }
 
   renderer.render(scene, camera);
 }
 
+// Initial setup
+setupCountries(countries[0]);
 animate();
 
 function bresenhamLine(x0, y0, x1, y1) {
@@ -149,10 +263,10 @@ function generateCountryMap(country, centerPosition) {
     for (let i = 0; i < polygon.length - 1; i++) {
       lines.push(
         bresenhamLine(
-          polygon[i].x,
-          polygon[i].z,
-          polygon[i + 1].x,
-          polygon[i + 1].z
+          polygon[i].x + centerPosition.x,
+          polygon[i].z + centerPosition.z,
+          polygon[i + 1].x + centerPosition.x,
+          polygon[i + 1].z + centerPosition.z
         )
       );
     }
@@ -181,7 +295,7 @@ function longLatToXZ([longitude, latitude], bbox) {
   let projection = d3.geoEquirectangular();
 
   // You might want to scale and translate your projection depending on the size of your scene
-  let scale = 1000; // This should be set depending on your scene size
+  let scale = 500; // This should be set depending on your scene size
   let translateX = 0; // Center of your scene in x
   let translateY = 0; // Center of your scene in z
 
@@ -204,8 +318,8 @@ function getPointsInCountry(country) {
   let points = [];
   let stepSize = 1; // Determines the density of the grid
   console.log(country.name);
-  let [minX, minZ] = longLatToXZ([bbox[0], bbox[1]]);
-  let [maxX, maxZ] = longLatToXZ([bbox[2], bbox[3]]);
+  let [minX, minZ] = longLatToXZ([bbox[0], bbox[1]], bbox);
+  let [maxX, maxZ] = longLatToXZ([bbox[2], bbox[3]], bbox);
 
   for (let x = minX; x <= maxX; x += stepSize) {
     if (minZ <= maxZ) {
@@ -283,11 +397,20 @@ async function getPopulationData() {
     console.error("Error:", error);
   }
 }
-function extractPopulationData(popData, country) {
+function extractPopulationData(popData, country, id) {
   let matchingCountry = popData.find(
     (p) => p["Data Source"] === country.properties["ADMIN"]
   );
-  if (matchingCountry != null) return matchingCountry["__parsed_extra"][63];
+  if (matchingCountry != null) return matchingCountry["__parsed_extra"][id];
+
+  // console.log(country.properties["ADMIN"]);
+  return null;
+}
+function extractPopulationData2(popData, country) {
+  let matchingCountry = popData.find(
+    (p) => p["Data Source"] === country.properties["ADMIN"]
+  );
+  if (matchingCountry != null) return matchingCountry["__parsed_extra"];
 
   // console.log(country.properties["ADMIN"]);
   return null;
@@ -310,14 +433,106 @@ function CountryNameBackgroundText(name) {
     });
     const textMesh = new THREE.Mesh(
       geometry,
-      new THREE.MeshBasicMaterial({ color: 0xad4000 })
+      new THREE.MeshBasicMaterial({ color: 0xf9f4f5 })
     );
     geometry.computeBoundingBox();
     const textWidth = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
 
     textMesh.position.x = -textWidth / 2;
     textMesh.position.z = -400;
+    textMesh.position.y = 100;
 
     scene.add(textMesh);
   });
+}
+
+let previousTextMesh = null; // Variable to store the previous textMesh
+
+function CountryYearBackgroundText(year) {
+  const loader = new FontLoader();
+
+  loader.load("./fonts/VCR OSD Mono_Regular.json", function (font) {
+    const geometry = new TextGeometry(year.toString(), {
+      font: font,
+      size: 30,
+      height: 2,
+    });
+    const textMesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({ color: 0xf9f4f5 })
+    );
+    geometry.computeBoundingBox();
+    const textWidth = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
+
+    textMesh.position.x = -textWidth / 2;
+    textMesh.position.z = -400;
+    textMesh.position.y = 150;
+
+    // Remove the old textMesh from the scene if it exists
+    if (previousTextMesh) {
+      scene.remove(previousTextMesh);
+    }
+
+    // Add the new textMesh to the scene
+    scene.add(textMesh);
+
+    // Update the previousTextMesh to the current one
+    previousTextMesh = textMesh;
+  });
+
+  console.log(1);
+}
+
+let chartInstance = null;
+
+async function DataColumn(country) {
+  var data = [];
+  for (let i = 1; i < 63; i++) {
+    data.push({ year: 1960 + i, count: country[i] });
+  }
+
+  if (chartInstance) {
+    // If chart instance exists, update data
+    chartInstance.data.labels = data.map((row) => row.year);
+    chartInstance.data.datasets[0].data = data.map((row) => row.count);
+    chartInstance.update(); // Important: Update the chart
+  } else {
+    // If not, create a new instance
+    chartInstance = new Chart(document.getElementById("acquisitions"), {
+      type: "bar",
+      data: {
+        labels: data.map((row) => row.year),
+        datasets: [
+          {
+            label: "Population by year",
+            data: data.map((row) => row.count),
+            backgroundColor: "#32746D",
+          },
+        ],
+      },
+      options: {
+        onClick: function (evt, activeElements) {
+          const dataIndex = activeElements[0].index;
+          const clickedDataset =
+            this.data.datasets[activeElements[0].datasetIndex];
+          const label = this.data.labels[dataIndex];
+          const value = clickedDataset.data[dataIndex];
+
+          // Remove all children from the scene
+          while (scene.children.length > 0) {
+            scene.remove(scene.children[0]);
+          }
+          console.log(dataIndex + "-------");
+          populationNumber = extractPopulationData(
+            popData,
+            countries[currentIndex],
+            dataIndex + 1
+          );
+          generateUnit(countries[currentIndex], new THREE.Vector3(0, 0, 0));
+          // Call your function here
+          CountryYearBackgroundText(label);
+        },
+      },
+    });
+  }
 }

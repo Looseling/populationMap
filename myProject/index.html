@@ -3,17 +3,103 @@
   <head>
     <title>My first Three.js app</title>
     <style>
+      #container {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+      }
+
+      #threeContainer,
+      #htmlContainer {
+        width: 50%;
+        height: 100%;
+      }
+
+      #htmlContainer {
+        background-color: #f0f0f0; /* change to whatever color or style you want */
+      }
       body {
         margin: 0;
       }
       canvas {
         display: block;
       }
+
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #804776; /* Yellow background */
+        font-family: "Press Start 2P", cursive; /* Pixelated font */
+      }
+
+      #htmlContainer {
+        width: 50%;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        padding: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+      }
+
+      .pixel-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        padding: 20px;
+      }
+
+      .pixel-card h1,
+      .pixel-card p,
+      .pixel-card select {
+        margin-bottom: 20px;
+      }
+
+      .pixel-block {
+        width: 100%;
+        height: 100%;
+        border: 2px dashed white;
+        margin-bottom: 20px;
+      }
     </style>
   </head>
   <body>
+    <div id="container">
+      <div id="threeContainer"></div>
+      <div id="htmlContainer">
+        <div class="pixel-card">
+          <select id="myDropdown"></select>
+          <!-- <div style="width: 500px;"><canvas id="dimensions"></canvas></div><br/> -->
+          <div style="width: 800px"><canvas id="acquisitions"></canvas></div>
+
+          <!-- <script type="module" src="dimensions.js"></script> -->
+          <script type="module" src="acquisitions.js"></script>
+          <div class="pixel-block" id="graphBlock">
+            <img src="./slider.png" class="cover-full" />
+          </div>
+          <div class="pixel-block" id="sliderBlock">
+            <img src="./graph.png" class="cover-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://threejs.org/build/three.js"></script>
+    <script src="https://threejs.org/examples/jsm/renderers/CSS3DRenderer.js"></script>
     <script src="main.js" type="module"></script>
+    <script src="graphs.js" type="module"></script>
+
     <!-- Your JavaScript code will be in this file -->
   </body>
 </html>
