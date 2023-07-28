@@ -2,5 +2,9 @@
   "dependencies": {
     "data.js": "^0.12.11",
     "papaparse": "^5.4.1"
+  },
+  "scripts": {
+    "build": "vite build",
+    "preview": "vite preview"
   }
 }

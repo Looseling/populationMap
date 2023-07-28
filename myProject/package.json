@@ -1,5 +1,7 @@
 {
-  "name": "myproject",
+  "name": "PopulizationDatus",
+  "homepage": "https://looseling.github.io/populationMap",
+  "deploy": "vite build && gh-pages -d dist",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,6 +11,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "gh-pages": "^5.0.0",
     "vite": "^4.3.2"
   },
   "dependencies": {
